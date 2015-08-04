@@ -8,7 +8,7 @@
 #define PROG_RGB_CYCLE 1
 
 #define PROGRAM_FPS 15
-#define MAX_PROGRAM_SIZE 7 * PROGRAM_FPS
+#define MAX_PROGRAM_SIZE 190
 
 color_step program[MAX_PROGRAM_SIZE];
 int programCounter = 0;
@@ -49,38 +49,38 @@ void startProgram(int programCode) {
   if (programCode == PROG_RGB_CYCLE) {
     // red
     color_step red = {curMillis + 1000, 255, 0, 0};
-    color_step orange = {curMillis + 2000, 255, 128, 0};
-    color_step yellow = {curMillis + 3000, 255, 255, 0};
-    color_step green = {curMillis + 4000, 0, 255, 0};
-    color_step blue = {curMillis + 5000, 0, 0, 255};
-    color_step purple = {curMillis + 6000, 128, 0, 255};
+    color_step orange = {curMillis + 3000, 255, 128, 0};
+    color_step yellow = {curMillis + 5000, 255, 255, 0};
+    color_step green = {curMillis + 7000, 0, 255, 0};
+    color_step blue = {curMillis + 9000, 0, 0, 255};
+    color_step purple = {curMillis + 11000, 128, 0, 255};
 
     //red
     pushColorOnQueue(red);
-    addTweeningSteps(red, orange, PROGRAM_FPS);
+    addTweeningSteps(red, orange, PROGRAM_FPS * 2);
 
     // orange
     pushColorOnQueue(orange);
-    addTweeningSteps(orange, yellow, PROGRAM_FPS);
+    addTweeningSteps(orange, yellow, PROGRAM_FPS * 2);
 
     // yellow
     pushColorOnQueue(yellow);
-    addTweeningSteps(yellow, green, PROGRAM_FPS);
+    addTweeningSteps(yellow, green, PROGRAM_FPS * 2);
 
     // green
     pushColorOnQueue(green);
-    addTweeningSteps(green, blue, PROGRAM_FPS);
+    addTweeningSteps(green, blue, PROGRAM_FPS* 2);
 
     // blue
     pushColorOnQueue(blue);
-    addTweeningSteps(blue, purple, PROGRAM_FPS);
+    addTweeningSteps(blue, purple, PROGRAM_FPS * 2);
 
     // purple
     pushColorOnQueue(purple);
     // don't use red because we need a farther along fire_time
     addTweeningSteps(purple, (color_step) {
       purple.fire_time + 1000, red.red, red.green, red.blue
-    }, PROGRAM_FPS);
+    }, PROGRAM_FPS * 2);
   }
 
   // reset counter after pushing items onto it, to make sure that loop starts at the beginning
@@ -88,14 +88,14 @@ void startProgram(int programCode) {
 }
 
 // todo: allow for brightness control
-void setColor(int red, int green, int blue) {
+void setColor(byte red, byte green, byte blue) {
   analogWrite(RED_OUT, normalizeColor(red));
   analogWrite(GREEN_OUT, normalizeColor(green));
   analogWrite(BLUE_OUT, normalizeColor(blue));
 }
 
 // ensures that a color value is between 0 and 255, inclusively.
-int normalizeColor(int in_color) {
+int normalizeColor(byte in_color) {
   if (in_color < 0) {
     return 0;
   }
@@ -131,9 +131,9 @@ void pushColorOnQueue(color_step new_step) {
 void addTweeningSteps(color_step from_step, color_step to_step, int num_steps) {
   // figure out the step differential for each step between from_step and to_step
   int time_step_amount = int((to_step.fire_time - from_step.fire_time) / num_steps);
-  int red_step_amount = int((to_step.red - from_step.red) / num_steps);
-  int green_step_amount = int((to_step.green - from_step.green) / num_steps);
-  int blue_step_amount = int((to_step.blue - from_step.blue) / num_steps);
+  byte red_step_amount = byte((to_step.red - from_step.red) / num_steps);
+  byte green_step_amount = byte((to_step.green - from_step.green) / num_steps);
+  byte blue_step_amount = byte((to_step.blue - from_step.blue) / num_steps);
 
   for (int step_counter = 0; step_counter < num_steps; step_counter++) {
     // always starting with from as a base, add scaled versions of the steps
