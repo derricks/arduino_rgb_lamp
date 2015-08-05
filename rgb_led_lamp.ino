@@ -8,7 +8,7 @@
 #define PROG_RGB_CYCLE 1
 
 #define PROGRAM_FPS 15
-#define MAX_PROGRAM_SIZE 190
+#define MAX_PROGRAM_SIZE 50
 
 color_step program[MAX_PROGRAM_SIZE];
 int programCounter = 0;
@@ -27,7 +27,40 @@ void loop() {
   if (millis() > program[programCounter].fire_time) {
     setColor(program[programCounter].red, program[programCounter].green, program[programCounter].blue);
     programCounter++;
+  } else {
+    setTweenValues();
   }
+}
+
+void setTweenValues() {
+  if (programCounter == 0) {
+    // program hasn't started yet
+    return;
+  }
+
+  // start point is the previous item!
+  color_step start_point = program[programCounter - 1];
+
+  // end point is either the next item in the program
+  // or the beginning of the program if this is the last step in the program 
+  //   (at which point programCounter will have been pushed past the last step)
+  color_step end_point = program[programCounter].fire_time == 0 ? program[0] : program[programCounter];
+
+  unsigned long current_millis = millis();
+  
+  // what percentage of the way through the cycle are we?
+  float percentage = (float)((current_millis - start_point.fire_time))/(float)((end_point.fire_time - start_point.fire_time));
+  
+  // use that percentage against the difference for the different colors
+  setColor(color_offset(start_point.red, end_point.red, percentage),
+           color_offset(start_point.green, end_point.green, percentage),
+           color_offset(start_point.blue, end_point.blue, percentage));
+}
+
+// given a starting color, an ending color, and a "how far" percentage,
+// return what the color should be for tweening
+byte color_offset(byte start_color, byte end_color, float percentage) {
+  return byte(start_color + ((end_color - start_color) * percentage));
 }
 
 boolean programAtEnd() {
@@ -57,30 +90,24 @@ void startProgram(int programCode) {
 
     //red
     pushColorOnQueue(red);
-    addTweeningSteps(red, orange, PROGRAM_FPS * 2);
 
     // orange
     pushColorOnQueue(orange);
-    addTweeningSteps(orange, yellow, PROGRAM_FPS * 2);
 
     // yellow
     pushColorOnQueue(yellow);
-    addTweeningSteps(yellow, green, PROGRAM_FPS * 2);
 
     // green
     pushColorOnQueue(green);
-    addTweeningSteps(green, blue, PROGRAM_FPS* 2);
 
     // blue
     pushColorOnQueue(blue);
-    addTweeningSteps(blue, purple, PROGRAM_FPS * 2);
 
     // purple
     pushColorOnQueue(purple);
-    // don't use red because we need a farther along fire_time
-    addTweeningSteps(purple, (color_step) {
-      purple.fire_time + 1000, red.red, red.green, red.blue
-    }, PROGRAM_FPS * 2);
+
+    // red
+    pushColorOnQueue((color_step){curMillis + 13000, 255, 0, 0});
   }
 
   // reset counter after pushing items onto it, to make sure that loop starts at the beginning
@@ -117,35 +144,3 @@ void pushColorOnQueue(color_step new_step) {
   program[programCounter] = new_step;
   programCounter++;
 }
-
-// figures out weening steps from from_step to to_step and adds them to the queue
-// though it requires to_step, it is up to the caller to explicitly add to_step (and from_step)
-// to the program.
-// The reason for this is twofold:
-// 1) We don't want to solely rely on the math to work out for getting to to_step
-//    if you're going from green = 3 to green = 4 over 40 steps, each individual step
-//    rounds down to 0. But you still want to ensure that you get to the final state
-// 2) If this method put to_step on the queue, the caller would need to keep track of which from_step and to_steps
-//    had been put on lest it duplicate. i.e., going from red -> orange poses no problems, but going from red -> orange -> yellow
-//    requires the caller to know that orange got plopped onto the stack and so shouldn't be re-added for the orange -> yellow bit
-void addTweeningSteps(color_step from_step, color_step to_step, int num_steps) {
-  // figure out the step differential for each step between from_step and to_step
-  int time_step_amount = int((to_step.fire_time - from_step.fire_time) / num_steps);
-  byte red_step_amount = byte((to_step.red - from_step.red) / num_steps);
-  byte green_step_amount = byte((to_step.green - from_step.green) / num_steps);
-  byte blue_step_amount = byte((to_step.blue - from_step.blue) / num_steps);
-
-  for (int step_counter = 0; step_counter < num_steps; step_counter++) {
-    // always starting with from as a base, add scaled versions of the steps
-    // on the first pass, we want the tween step to be original_fire_time + 1 fire_time_interval
-    // but on the second, we want the tween step to be original_fire_time + 2 fire_time_interval
-    int multiplier = step_counter + 1;
-    pushColorOnQueue((color_step) {
-      from_step.fire_time + (time_step_amount * multiplier),
-                          from_step.red + (red_step_amount * multiplier),
-                          from_step.green + (green_step_amount * multiplier),
-                          from_step.blue + (blue_step_amount * multiplier)
-    });
-  }
-}
-
